@@ -11,18 +11,20 @@ class Pile:
 
     def __str__(self):
         pile_string_lines = [self.disk_to_str(disk) for disk in self._pile]
-        biggest_disk = (self.max_size - 1) * 2 + 3
+        largest_disk = (self.max_size - 1) * 2 * self.disk_width + 3
         for i in range(len(self._pile), self.max_size):
             pile_string_lines = ["|", *pile_string_lines]
-        pile_string_lines = list(map(lambda x: x.center(biggest_disk, " "), pile_string_lines))
-        pile_string_lines.append("|".center(biggest_disk, "_"))
-        pile_string_lines.append(self.name.center(biggest_disk))
+        pile_string_lines = list(
+            map(lambda x: x.center(largest_disk, " "), pile_string_lines)
+        )
+        pile_string_lines.append("|".center(largest_disk, "_"))
+        pile_string_lines.append(self.name.center(largest_disk))
         return "\n".join(pile_string_lines)
 
     def __hash__(self):
         m = str_to_int(self.name)
         for disk in self._pile:
-            m *= (disk + 1)
+            m *= disk + 1
         return m
 
     def __getitem__(self, item):
@@ -38,7 +40,7 @@ class Pile:
 
     def disk_to_str(self, disk_size):
         middle = ["="] * (disk_size * self.disk_width * 2 - 1)
-        middle[len(middle)//2] = str(disk_size)
+        middle[len(middle) // 2] = str(disk_size)
         disk_str = f"<{''.join(middle)}>"
         return disk_str
 
@@ -46,7 +48,7 @@ class Pile:
 @dataclass
 class State:
     piles: List[Pile]
-    move_str: str
+    last_move: str = ""
 
     def h(self):
         return calc_h(self)
@@ -65,10 +67,14 @@ class State:
         piles_as_lists_of_strings = [str(pile).split("\n") for pile in self.piles]
         for line_number in range(len(piles_as_lists_of_strings[0])):
             st_str += "   ".join(
-                [piles_as_lists_of_strings[pile_number][line_number] for pile_number in range(len(self.piles))])
+                [
+                    piles_as_lists_of_strings[pile_number][line_number]
+                    for pile_number in range(len(self.piles))
+                ]
+            )
             st_str += "\n"
         if DEBUG:
-            st_str += f"{self.move_str}   {self.h()}   {self.__hash__()}"
+            st_str += f"{self.last_move}   {self.h()}   {self.__hash__()}"
         return st_str
 
 
@@ -89,25 +95,25 @@ def calc_h(state):
     Here the heuristics are defined:
     0. Start with 0
     1. Let fault mean a disk placed on top of another one which is
-        not its direct successor, add 1 for each fault in all piles.
-    2. Add 1.5 for each disk that is not on the target _pile.
-    3. Add 1 for each disk in the target _pile that is not on its
+        not its direct successor, add 'a' for each fault in all piles.
+    2. Add 'b' for each disk that is not on the target pile.
+    3. Add 'c' for each disk in the target pile that is not on its
         correct final place, as it would be when the game is over.
     """
     p1, p2, p3 = state.piles
-    n_disks = len(p1) + len(p2) + len(p3)
+    n = len(p1) + len(p2) + len(p3)
     h = 0
 
     for pile in (p1, p2, p3):
-        h += 1 * faults(pile)
+        h += a * count_faults(pile)
 
-    h += 1 * (len(p1) + len(p2))
+    h += b * (len(p1) + len(p2))
 
-    h += 1 * errors(p3, n_disks)
+    h += c * count_errors(p3, n)
     return h
 
 
-def faults(pile):
+def count_faults(pile):
     fault_count = 0
     for i in range(len(pile) - 1):
         if pile[i + 1] - pile[i] > 1:
@@ -115,7 +121,7 @@ def faults(pile):
     return fault_count
 
 
-def errors(pile: Pile, n_disks):
+def count_errors(pile: Pile, n_disks):
     pile_reversed = pile.reversed()
     error_count = 0
     for i in range(len(pile_reversed)):
@@ -136,7 +142,11 @@ def calc_possible_states(state):
                 new_pile_from, new_pile_to = move_one(pile_from, pile_to)
                 new_piles[state.piles.index(pile_from)] = new_pile_from
                 new_piles[state.piles.index(pile_to)] = new_pile_to
-                possible_states.append(State(new_piles, f"{new_pile_from.name}->{new_pile_to.name}"))
+                new_state = State(
+                    piles=new_piles,
+                    last_move=f"{new_pile_from.name}->{new_pile_to.name}",
+                )
+                possible_states.append(new_state)
     return possible_states
 
 
@@ -168,31 +178,80 @@ def move(state, visited_states):
         if temp_h < best_h:
             new_state = st
             best_h = temp_h
-    print("NEW STATE:")
-    print(new_state)
+    if DISPLAY:
+        print("NEW STATE:")
+        print(new_state)
     return new_state
 
 
 def hanoi(n):
     start = Pile(_pile=[i for i in range(1, n + 1)], name="start", max_size=n)
     aux, end = Pile(name="aux", max_size=n), Pile(name="end", max_size=n)
-    state = State([start, aux, end], "")
-    print("INITIAL STATE:")
-    print(state)
+    state = State(piles=[start, aux, end])
+    if DISPLAY:
+        print("INITIAL STATE:")
+        print(state)
     visited_states = [state]
     moves = []
     while calc_h(state) != 0:
         new_state = move(state, visited_states)
         visited_states.append(state)
         state = new_state
-        moves.append(new_state.move_str)
+        moves.append(new_state.last_move)
     return moves
 
 
 if __name__ == "__main__":
     DEBUG = False
-    number_of_disks = 5
-    output = hanoi(number_of_disks)
-    print(output)
-    print(f"Total moves: {len(output)}")
-    print(f"Minimum moves: {2 ** number_of_disks - 1}")
+    DISPLAY = False
+    errors = []
+    combinations = [
+        # (1, 1, 1),
+        # (2, 1, 1),
+        # (2, 2, 1),
+        # (2, 1, 2),
+        # (1, 2, 1),
+        # (1, 2, 2),
+        # (1, 1, 2),
+        # (0.5, 1, 2),
+        # (0.5, 2, 1),
+        # (1, 0.5, 2),
+        # (2, 0.5, 1),
+        # (1, 2, 0.5),
+        # (2, 1, 0.5),
+        # (1, 2, 3),
+        # (1, 3, 2),
+        # (2, 1, 3),
+        # (2, 3, 1),
+        # (3, 1, 2),
+        # (3, 2, 2),
+        # (3, 2, 1.5),
+        # (3, 2, 0),
+        (3, 2, 1),
+    ]
+    for a, b, c in combinations:
+        failures = 0
+        first_n, last_n = 3, 10
+        for n_disks in range(first_n, last_n + 1):
+            try:
+                if DEBUG:
+                    print(f"==== {n_disks} DISKS ====")
+                output = hanoi(n_disks)
+            except AttributeError:
+                if DEBUG:
+                    print(f"Failed with {n_disks} disks")
+                failures += 1
+                continue
+            expected_moves = 2 ** n_disks - 1
+            err = (len(output) - expected_moves) / expected_moves
+            errors.append(err)
+            if DISPLAY:
+                print(output)
+            if DEBUG:
+                print(f"Total moves: {len(output)}")
+                print(f"Minimum moves: {2 ** n_disks - 1} (2^n - 1)")
+                print(f"Error rate: {err * 100:.2f}%")
+        print()
+        print(f"Parameters: a = {a}, b = {b}, c = {c}")
+        print(f"Average error: {sum(errors) / len(errors) * 100:.2f}%")
+        print(f"Failure rate: {failures / (last_n - first_n + 1) * 100:.2f}%")
