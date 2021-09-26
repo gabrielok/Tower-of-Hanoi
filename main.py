@@ -6,6 +6,7 @@
 from pile import Pile
 from state import State
 
+
 def calc_h(state):
     """
     Here the heuristics are defined:
@@ -47,47 +48,10 @@ def count_errors(pile: Pile, n):
     return error_count
 
 
-def calc_possible_states(state):
-    possible_states = []
-    for pile_from in state.piles:
-        for pile_to in state.piles:
-            if pile_to == pile_from:
-                continue
-            new_piles = state.piles.copy()
-            if can_move(pile_from, pile_to):
-                new_pile_from, new_pile_to = move_one(pile_from, pile_to)
-                new_piles[state.piles.index(pile_from)] = new_pile_from
-                new_piles[state.piles.index(pile_to)] = new_pile_to
-                new_state = State(
-                    piles=new_piles,
-                    last_move=f"{new_pile_from.name}->{new_pile_to.name}",
-                )
-                possible_states.append(new_state)
-    return possible_states
-
-
-def can_move(pile1, pile2):
-    """ From pile1 to pile2 """
-    if len(pile1) == 0:
-        return False
-    if len(pile2) == 0:
-        return True
-    if pile1[0] < pile2[0]:
-        return True
-
-
-def move_one(pile1, pile2):
-    """ From pile1 to pile2 """
-    p2 = Pile(_pile=[pile1[0], *pile2[:]], name=pile2.name, max_size=pile2.max_size)
-    p1 = Pile(_pile=pile1[1:], name=pile1.name, max_size=pile1.max_size)
-    return p1, p2
-
-
 def move(current_state, visited_states):
-    possible_states = calc_possible_states(current_state)
     best_h = 1e10
     new_state = None
-    for state in possible_states:
+    for state in current_state.possible_states():
         if state in visited_states:
             continue
         temp_h = calc_h(state)
