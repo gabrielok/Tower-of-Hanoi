@@ -1,94 +1,10 @@
-from dataclasses import dataclass, field
-from typing import List
+# Hanoi
+# @File:   main.py
+# @Time:   25/09/2021
+# @Author: Gabriel O.
 
-
-@dataclass
-class Pile:
-    max_size: int
-    name: str
-    _pile: List[int] = field(default_factory=list)
-    disk_width: int = 1
-
-    def __str__(self):
-        pile_string_lines = [self.disk_to_str(disk) for disk in self._pile]
-        largest_disk = (self.max_size - 1) * 2 * self.disk_width + 3
-        for i in range(len(self._pile), self.max_size):
-            pile_string_lines = ["|", *pile_string_lines]
-        pile_string_lines = list(
-            map(lambda x: x.center(largest_disk, " "), pile_string_lines)
-        )
-        pile_string_lines.append("|".center(largest_disk, "_"))
-        pile_string_lines.append(self.name.center(largest_disk))
-        return "\n".join(pile_string_lines)
-
-    def __hash__(self):
-        m = str_to_int(self.name)
-        for disk in self._pile:
-            m *= disk + 1
-        return m
-
-    def __getitem__(self, item):
-        return self._pile[item]
-
-    def __len__(self):
-        return len(self._pile)
-
-    def reversed(self):
-        _pile_copy = self._pile.copy()
-        _pile_copy.reverse()
-        return _pile_copy
-
-    def disk_to_str(self, disk_size):
-        middle = ["="] * (disk_size * self.disk_width * 2 - 1)
-        middle[len(middle) // 2] = str(disk_size)
-        disk_str = f"<{''.join(middle)}>"
-        return disk_str
-
-
-@dataclass
-class State:
-    piles: List[Pile]
-    last_move: str = ""
-
-    def h(self):
-        return calc_h(self)
-
-    def __hash__(self):
-        s = 0
-        for pile in self.piles:
-            s += pile.__hash__()
-        return s
-
-    def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
-
-    def __str__(self):
-        st_str = ""
-        piles_as_lists_of_strings = [str(pile).split("\n") for pile in self.piles]
-        for line_number in range(len(piles_as_lists_of_strings[0])):
-            st_str += "   ".join(
-                [
-                    piles_as_lists_of_strings[pile_number][line_number]
-                    for pile_number in range(len(self.piles))
-                ]
-            )
-            st_str += "\n"
-        if DEBUG:
-            st_str += f"{self.last_move}   {self.h()}   {self.__hash__()}"
-        return st_str
-
-
-def str_to_int(string):
-    s = 0
-    alphabet = "abcdefghijklmnopqrstuvwxyz"
-    lookup = {alphabet[i]: i for i in range(len(alphabet))}
-    for letter in string:
-        try:
-            s += lookup[letter]
-        except KeyError:
-            pass
-    return s
-
+from pile import Pile
+from state import State
 
 def calc_h(state):
     """
@@ -121,13 +37,13 @@ def count_faults(pile):
     return fault_count
 
 
-def count_errors(pile: Pile, n_disks):
+def count_errors(pile: Pile, n):
     pile_reversed = pile.reversed()
     error_count = 0
     for i in range(len(pile_reversed)):
-        if pile_reversed[i] != n_disks:
+        if pile_reversed[i] != n:
             error_count += 1
-        n_disks -= 1
+        n -= 1
     return error_count
 
 
@@ -167,16 +83,16 @@ def move_one(pile1, pile2):
     return p1, p2
 
 
-def move(state, visited_states):
-    possible_states = calc_possible_states(state)
+def move(current_state, visited_states):
+    possible_states = calc_possible_states(current_state)
     best_h = 1e10
     new_state = None
-    for st in possible_states:
-        if st in visited_states:
+    for state in possible_states:
+        if state in visited_states:
             continue
-        temp_h = st.h()
+        temp_h = calc_h(state)
         if temp_h < best_h:
-            new_state = st
+            new_state = state
             best_h = temp_h
     if DISPLAY:
         print("NEW STATE:")
