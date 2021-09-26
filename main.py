@@ -7,17 +7,16 @@ class Pile:
     max_size: int
     name: str
     _pile: List[int] = field(default_factory=list)
-    pile_width: int = 7
     disk_width: int = 1
 
     def __str__(self):
         pile_string_lines = [self.disk_to_str(disk) for disk in self._pile]
+        biggest_disk = (self.max_size - 1) * 2 + 3
         for i in range(len(self._pile), self.max_size):
             pile_string_lines = ["|", *pile_string_lines]
-        w = self.pile_width
-        pile_string_lines = list(map(lambda x: x.center(w, " "), pile_string_lines))
-        pile_string_lines.append("|".center(w, "_"))
-        pile_string_lines.append(self.name.center(w))
+        pile_string_lines = list(map(lambda x: x.center(biggest_disk, " "), pile_string_lines))
+        pile_string_lines.append("|".center(biggest_disk, "_"))
+        pile_string_lines.append(self.name.center(biggest_disk))
         return "\n".join(pile_string_lines)
 
     def __hash__(self):
@@ -39,6 +38,7 @@ class Pile:
 
     def disk_to_str(self, disk_size):
         middle = ["="] * (disk_size * self.disk_width * 2 - 1)
+        middle[len(middle)//2] = str(disk_size)
         disk_str = f"<{''.join(middle)}>"
         return disk_str
 
@@ -64,7 +64,7 @@ class State:
         st_str = ""
         piles_as_lists_of_strings = [str(pile).split("\n") for pile in self.piles]
         for line_number in range(len(piles_as_lists_of_strings[0])):
-            st_str += "  ".join(
+            st_str += "   ".join(
                 [piles_as_lists_of_strings[pile_number][line_number] for pile_number in range(len(self.piles))])
             st_str += "\n"
         if DEBUG:
@@ -99,11 +99,11 @@ def calc_h(state):
     h = 0
 
     for pile in (p1, p2, p3):
-        h += faults(pile)
+        h += 1 * faults(pile)
 
-    h += 1.5 * (len(p1) + len(p2))
+    h += 1 * (len(p1) + len(p2))
 
-    h += errors(p3, n_disks)
+    h += 1 * errors(p3, n_disks)
     return h
 
 
@@ -191,7 +191,7 @@ def hanoi(n):
 
 if __name__ == "__main__":
     DEBUG = False
-    number_of_disks = 4
+    number_of_disks = 5
     output = hanoi(number_of_disks)
     print(output)
     print(f"Total moves: {len(output)}")
